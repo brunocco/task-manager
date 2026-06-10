@@ -1,0 +1,84 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t task-manager:latest .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install -r requirements.txt && pip install pytest
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  bandit_sast:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Bandit
+        run: pip install bandit
+      - name: Run Bandit SAST
+        run: bandit -r todo_project/ -ll -f json -o bandit_report.json || true
+      - name: Show results
+        run: bandit -r todo_project/ -ll || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit_report.json
+
+  dependency_check:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Safety
+        run: pip install safety
+      - name: Run Dependency Check
+        run: safety check -r requirements.txt || true
+
+  dast_zap:
+    runs-on: ubuntu-latest
+    needs: [build, bandit_sast]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run app
+        run: |
+          docker build -t task-manager:latest .
+          docker run -d -p 8080:8080 --name app task-manager:latest
+          sleep 10
+      - name: Run OWASP ZAP
+        run: |
+          docker run --rm --network host ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://localhost:8080 || true
+      - name: Stop app
+        run: docker stop app
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [dast_zap]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy (simulado)
+        run: echo "Deploy em staging concluido - app pronta para producao"

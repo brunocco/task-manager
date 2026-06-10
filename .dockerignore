@@ -1,0 +1,9 @@
+.git/
+.gitignore
+output/
+tests/
+*.md
+LICENSE
+__pycache__/
+*.pyc
+.gitlab-ci.yml
