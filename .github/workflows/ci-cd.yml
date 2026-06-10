@@ -61,7 +61,7 @@ jobs:
 
   dast_zap:
     runs-on: ubuntu-latest
-    needs: [build, bandit_sast]
+    needs: [build, bandit_sast, dependency_check]
     steps:
       - uses: actions/checkout@v4
       - name: Build and run app
