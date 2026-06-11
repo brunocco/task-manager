@@ -1,4 +1,4 @@
-from flask import render_template, url_for, flash, redirect, request
+from flask import render_template, url_for, flash, redirect, request, Response
 
 from todo_project import app, db, bcrypt
 
@@ -24,6 +24,11 @@ def error_403(error):
 @app.errorhandler(500)
 def error_500(error):
     return (render_template('errors/500.html'), 500)
+
+
+@app.route("/health")
+def health():
+    return Response("app_up 1\n", status=200, content_type="text/plain; charset=utf-8")
 
 
 @app.route("/")
